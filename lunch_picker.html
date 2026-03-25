@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎲 랜덤 급식 자리 뽑기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --surface: #161827;
+    --card: #1e2135;
+    --border: rgba(255,255,255,0.07);
+    --accent1: #ff6b6b;
+    --accent2: #ffd93d;
+    --accent3: #6bcb77;
+    --accent4: #4d96ff;
+    --text: #f0f2ff;
+    --muted: #7a7f9a;
+    --glow1: rgba(255,107,107,0.25);
+    --glow2: rgba(255,217,61,0.25);
+    --glow3: rgba(107,203,119,0.25);
+    --glow4: rgba(77,150,255,0.25);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── starfield ── */
+  #stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse at 20% 40%, rgba(77,150,255,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 10%, rgba(255,107,107,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 60% 90%, rgba(107,203,119,0.06) 0%, transparent 45%);
+  }
+  #stars::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px),
+      radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px),
+      radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px);
+    background-size: 200px 200px, 120px 120px, 80px 80px;
+    background-position: 0 0, 40px 60px, 20px 100px;
+    animation: twinkle 8s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    0%   { opacity: 0.4; }
+    100% { opacity: 0.9; }
+  }
+
+  /* ── layout ── */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* ── header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .header h1 {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 30%, #4d96ff 70%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  /* ── sections ── */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(8px);
+  }
+  .section-title {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  /* ── name chips ── */
+  .chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.88rem;
+    color: var(--text);
+    transition: all 0.2s;
+    cursor: default;
+    user-select: none;
+  }
+  .chip:hover { border-color: rgba(255,255,255,0.2); }
+  .chip .del {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.2s;
+  }
+  .chip .del:hover { color: var(--accent1); }
+  .chip.bouncing { animation: chipPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes chipPop {
+    0%   { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .add-row {
+    display: flex; gap: 10px;
+  }
+  .add-row input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-row input:focus { border-color: var(--accent4); }
+  .add-row input::placeholder { color: var(--muted); }
+  .add-row button {
+    background: var(--accent4);
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    color: #fff;
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .add-row button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+  /* ── group config ── */
+  .group-config {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    align-items: center;
+  }
+  .group-config label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.88rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .group-config label span { color: var(--text); font-weight: 500; }
+  .group-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    width: 52px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .group-input:focus { border-color: var(--accent2); }
+  .count-badge {
+    margin-left: auto;
+    background: rgba(77,150,255,0.15);
+    border: 1px solid rgba(77,150,255,0.3);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    color: var(--accent4);
+    white-space: nowrap;
+  }
+  .count-badge.warn {
+    background: rgba(255,107,107,0.15);
+    border-color: rgba(255,107,107,0.3);
+    color: var(--accent1);
+  }
+
+  /* ── main button ── */
+  .btn-draw {
+    width: 100%;
+    padding: 20px;
+    border: none;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #4d96ff, #6bcb77);
+    color: #fff;
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: clamp(1.1rem, 3vw, 1.4rem);
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(77,150,255,0.3);
+  }
+  .btn-draw::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent, rgba(255,255,255,0.15), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+  .btn-draw:hover::before { transform: translateX(100%); }
+  .btn-draw:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(77,150,255,0.45); }
+  .btn-draw:active { transform: translateY(0); }
+  .btn-draw:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── result area ── */
+  #result-area { display: none; }
+  #result-area.show { display: block; }
+
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  }
+  .result-title {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .action-btns {
+    display: flex; gap: 10px;
+  }
+  .btn-sm {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-sm:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); }
+  .btn-sm.redo {
+    background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,217,61,0.2));
+    border-color: rgba(255,107,107,0.35);
+    color: #ffd93d;
+  }
+  .btn-sm.redo:hover { filter: brightness(1.15); }
+
+  /* ── group cards grid ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 18px;
+  }
+  @media (max-width: 520px) {
+    .cards-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .group-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 22px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+    animation: cardReveal 0.5s cubic-bezier(0.34,1.36,0.64,1) forwards;
+  }
+  .group-card:hover {
+    transform: translateY(-4px) scale(1.01) !important;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  }
+  .group-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 20px 20px 0 0;
+  }
+  .group-card.c1::before { background: var(--accent1); box-shadow: 0 0 16px var(--glow1); }
+  .group-card.c2::before { background: var(--accent2); box-shadow: 0 0 16px var(--glow2); }
+  .group-card.c3::before { background: var(--accent3); box-shadow: 0 0 16px var(--glow3); }
+  .group-card.c4::before { background: var(--accent4); box-shadow: 0 0 16px var(--glow4); }
+  .group-card.c1 { box-shadow: 0 4px 24px var(--glow1); }
+  .group-card.c2 { box-shadow: 0 4px 24px var(--glow2); }
+  .group-card.c3 { box-shadow: 0 4px 24px var(--glow3); }
+  .group-card.c4 { box-shadow: 0 4px 24px var(--glow4); }
+
+  @keyframes cardReveal {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .group-label {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .c1 .group-label { color: var(--accent1); }
+  .c2 .group-label { color: var(--accent2); }
+  .c3 .group-label { color: var(--accent3); }
+  .c4 .group-label { color: var(--accent4); }
+
+  .member-list { display: flex; flex-direction: column; gap: 6px; }
+  .member-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.92rem;
+    padding: 7px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    transition: background 0.2s;
+    opacity: 0;
+    animation: memberSlide 0.4s ease forwards;
+  }
+  .member-item:hover { background: rgba(255,255,255,0.08); }
+  @keyframes memberSlide {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .member-num {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .c1 .member-num { background: rgba(255,107,107,0.2); color: var(--accent1); }
+  .c2 .member-num { background: rgba(255,217,61,0.2);  color: var(--accent2); }
+  .c3 .member-num { background: rgba(107,203,119,0.2); color: var(--accent3); }
+  .c4 .member-num { background: rgba(77,150,255,0.2);  color: var(--accent4); }
+
+  .group-count {
+    position: absolute;
+    top: 14px; right: 14px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'Gmarket Sans', sans-serif;
+  }
+
+  /* ── shuffle overlay ── */
+  #shuffle-overlay {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: rgba(13,15,26,0.92);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  #shuffle-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .shuffle-ring {
+    width: 80px; height: 80px;
+    border: 3px solid rgba(255,255,255,0.08);
+    border-top-color: var(--accent4);
+    border-right-color: var(--accent3);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .shuffle-text {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 1.1rem;
+    color: var(--muted);
+    animation: pulse 1s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { to { color: var(--text); } }
+
+  /* ── toast ── */
+  #toast {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(30,33,53,0.95);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 0.88rem;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 200;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── footer note ── */
+  .foot-note {
+    text-align: center;
+    margin-top: 40px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div id="shuffle-overlay">
+  <div class="shuffle-ring"></div>
+  <p class="shuffle-text">조를 섞는 중...</p>
+</div>
+<div id="toast"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🎲 랜덤 급식 자리 뽑기</h1>
+    <p>버튼 한 번으로 공정하게 조를 나눠요!</p>
+  </div>
+
+  <!-- Name list section -->
+  <div class="section">
+    <div class="section-title">👥 학생 명단</div>
+    <div class="chips" id="chips"></div>
+    <div class="add-row">
+      <input type="text" id="name-input" placeholder="이름 입력 후 Enter 또는 추가 버튼" maxlength="10" />
+      <button onclick="addName()">+ 추가</button>
+    </div>
+  </div>
+
+  <!-- Group config section -->
+  <div class="section">
+    <div class="section-title">⚙️ 조 인원 설정</div>
+    <div class="group-config" id="group-config">
+      <!-- generated by JS -->
+    </div>
+  </div>
+
+  <!-- Draw button -->
+  <button class="btn-draw" id="btn-draw" onclick="draw()">🎲 랜덤으로 조 나누기!</button>
+
+  <!-- Result -->
+  <div id="result-area">
+    <br/>
+    <div class="result-header">
+      <div class="result-title">✨ 결과</div>
+      <div class="action-btns">
+        <button class="btn-sm redo" onclick="draw()">🔀 다시 뽑기</button>
+        <button class="btn-sm" onclick="copyResult()">📋 복사</button>
+        <button class="btn-sm" onclick="saveImage()">🖼️ 이미지 저장</button>
+      </div>
+    </div>
+    <div class="cards-grid" id="cards-grid"></div>
+  </div>
+
+  <div class="foot-note">공정한 랜덤 배치 · 한 사람은 한 조에만 배정됩니다</div>
+</div>
+
+<script>
+  const COLORS = ['c1','c2','c3','c4'];
+  const GROUP_COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff'];
+  const DEFAULT_NAMES = ['김다연','김조을','박지민','박지연','민수아','권세은','김소희','김효현','지도현','하동건','허영재','정명우','정승우','채도훈','윤유섭','손희찬','이건희'];
+  const DEFAULT_SIZES = [4,4,4,5];
+
+  let names = [...DEFAULT_NAMES];
+  let groupSizes = [...DEFAULT_SIZES];
+  let lastResult = null;
+
+  // ── init ──
+  renderChips();
+  renderGroupConfig();
+
+  // ── chips ──
+  function renderChips() {
+    const c = document.getElementById('chips');
+    c.innerHTML = '';
+    names.forEach((n, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip bouncing';
+      chip.innerHTML = `${n}<span class="del" onclick="removeName(${i})">×</span>`;
+      chip.style.animationDelay = (i * 0.03) + 's';
+      c.appendChild(chip);
+    });
+  }
+
+  function addName() {
+    const inp = document.getElementById('name-input');
+    const v = inp.value.trim();
+    if (!v) return;
+    if (names.includes(v)) { showToast('이미 있는 이름이에요!'); return; }
+    names.push(v);
+    inp.value = '';
+    renderChips();
+    renderGroupConfig();
+  }
+
+  function removeName(i) {
+    names.splice(i, 1);
+    renderChips();
+    renderGroupConfig();
+  }
+
+  document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addName();
+  });
+
+  // ── group config ──
+  function renderGroupConfig() {
+    const total = names.length;
+    const gc = document.getElementById('group-config');
+    gc.innerHTML = '';
+
+    groupSizes.forEach((sz, i) => {
+      const label = document.createElement('label');
+      label.innerHTML = `
+        <span style="color:${GROUP_COLORS[i]};font-weight:700">${i+1}조</span>
+        <input class="group-input" type="number" min="1" max="99" value="${sz}"
+               oninput="updateGroupSize(${i}, this.value)" />명
+      `;
+      gc.appendChild(label);
+    });
+
+    const configTotal = groupSizes.reduce((a,b)=>a+b,0);
+    const badge = document.createElement('div');
+    const ok = configTotal === total;
+    badge.className = 'count-badge' + (ok ? '' : ' warn');
+    badge.textContent = ok
+      ? `✓ 총 ${total}명 · ${groupSizes.join('+')}=${configTotal}`
+      : `⚠ 조 합계 ${configTotal}명 ≠ 명단 ${total}명`;
+    gc.appendChild(badge);
+  }
+
+  function updateGroupSize(i, val) {
+    const v = parseInt(val);
+    if (!isNaN(v) && v >= 1) groupSizes[i] = v;
+    renderGroupConfig();
+  }
+
+  // ── draw ──
+  function draw() {
+    const total = groupSizes.reduce((a,b)=>a+b,0);
+    if (total !== names.length) {
+      showToast(`조 합계(${total})와 명단(${names.length})이 달라요!`); return;
+    }
+    if (names.length === 0) { showToast('명단이 비어있어요!'); return; }
+
+    // show overlay
+    const overlay = document.getElementById('shuffle-overlay');
+    overlay.classList.add('active');
+    document.getElementById('btn-draw').disabled = true;
+
+    setTimeout(() => {
+      const shuffled = shuffle([...names]);
+      const groups = [];
+      let idx = 0;
+      groupSizes.forEach(sz => {
+        groups.push(shuffled.slice(idx, idx + sz));
+        idx += sz;
+      });
+      lastResult = groups;
+
+      overlay.classList.remove('active');
+      document.getElementById('btn-draw').disabled = false;
+      renderResult(groups);
+    }, 900);
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // ── render result ──
+  function renderResult(groups) {
+    const area = document.getElementById('result-area');
+    const grid = document.getElementById('cards-grid');
+    area.className = 'show';
+    grid.innerHTML = '';
+
+    groups.forEach((members, gi) => {
+      const card = document.createElement('div');
+      card.className = `group-card ${COLORS[gi % COLORS.length]}`;
+      card.style.animationDelay = (gi * 0.12) + 's';
+
+      const memberHTML = members.map((m, mi) => `
+        <div class="member-item" style="animation-delay:${gi*0.12 + mi*0.07 + 0.2}s">
+          <div class="member-num">${mi+1}</div>
+          <span>${m}</span>
+        </div>
+      `).join('');
+
+      card.innerHTML = `
+        <div class="group-count">${members.length}명</div>
+        <div class="group-label">${gi+1}조</div>
+        <div class="member-list">${memberHTML}</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── copy ──
+  function copyResult() {
+    if (!lastResult) return;
+    const text = lastResult.map((g, i) =>
+      `[${i+1}조]\n` + g.map((n,j)=>`  ${j+1}. ${n}`).join('\n')
+    ).join('\n\n');
+    navigator.clipboard.writeText(text).then(() => showToast('📋 클립보드에 복사됐어요!'));
+  }
+
+  // ── save image ──
+  function saveImage() {
+    if (!lastResult) return;
+    const grid = document.getElementById('cards-grid');
+    showToast('⏳ 이미지 저장 중...');
+    html2canvas(grid, {
+      backgroundColor: '#0d0f1a',
+      scale: 2,
+      useCORS: true,
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = '급식자리배정.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('🖼️ 이미지가 저장됐어요!');
+    });
+  }
+
+  // ── toast ──
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
